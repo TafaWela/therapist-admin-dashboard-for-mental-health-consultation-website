@@ -1,4 +1,5 @@
 import { apiFetch } from './client.js'
+import { getTherapistRouteId } from './loginResponse.js'
 
 export function loginRequest(email, password) {
   return apiFetch('/api/auth/login', {
@@ -42,6 +43,22 @@ export function fetchTherapistAvailabilitySlots(therapistId) {
 
 export function fetchTherapistProfiles() {
   return apiFetch('/api/ApiTherapistProfile')
+}
+
+/** Resolve therapist id for `/api/users/therapist/{id}/...` and availability routes. */
+export function resolveTherapistIdForApi(user) {
+  if (!user?.id) return undefined
+  const useProfile = import.meta.env.VITE_THERAPIST_ROUTE_USES_PROFILE_ID === 'true'
+  const pid = user.therapistProfileId
+  if (useProfile && pid != null && String(pid).trim() !== '') {
+    const n = String(pid).replace(/\D/g, '')
+    if (n) return n
+  }
+  return getTherapistRouteId(user) ?? String(user.id).trim().replace(/^_+/, '')
+}
+
+export function fetchTherapistProfileByUserId(userId) {
+  return apiFetch(`/api/ApiTherapistProfile/user/${encodeURIComponent(userId)}`)
 }
 
 export function fetchReports() {

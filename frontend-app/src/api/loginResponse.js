@@ -3,6 +3,35 @@
  * Probe with a real account: token may be access | access_token | token | data.access, etc.
  */
 
+/**
+ * ASP.NET route params expect a numeric id. JWT `sub` or copied ids sometimes include
+ * a leading underscore or other noise — that yields paths like `/therapist/_5150028/...`
+ * and can trigger 500s during model binding.
+ */
+export function normalizeApiNumericId(raw) {
+  if (raw == null) return null
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    const t = Math.trunc(raw)
+    return t >= 0 ? String(t) : null
+  }
+  const s = String(raw).trim()
+  if (/^\d+$/.test(s)) return s
+  const runs = s.match(/\d+/g)
+  if (!runs?.length) return null
+  const best = runs.reduce((a, b) => (a.length >= b.length ? a : b))
+  if (best.length >= 4) return best
+  return best.length ? best : null
+}
+
+export function getTherapistRouteId(user) {
+  if (!user?.id) return undefined
+  const n = normalizeApiNumericId(user.id)
+  if (n) return n
+  const stripped = String(user.id).trim().replace(/^_+/, '')
+  const again = normalizeApiNumericId(stripped)
+  return again ?? stripped
+}
+
 export function decodeJwtPayload(token) {
   if (!token || typeof token !== 'string') return null
   const parts = token.split('.')
@@ -80,13 +109,39 @@ function resolveRole(apiUser, jwtPayload) {
   return 'therapist'
 }
 
+function pickRawIdFromLogin(rawUser, jwtPayload) {
+  const u = rawUser || {}
+  const t = jwtPayload || {}
+  const candidates = [
+    u.id,
+    u.user_id,
+    u.pk,
+    u.userId,
+    t.user_id,
+    t.UserId,
+    t.uid,
+    t.nameid,
+    t.sub,
+    t['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+  ]
+  for (const c of candidates) {
+    if (c != null && c !== '') return c
+  }
+  return null
+}
+
 export function buildAppUserFromLogin({ data, email, token }) {
   const rawUser = extractRawUserFromLoginResponse(data)
   const jwtPayload = token ? decodeJwtPayload(token) : null
   const role = resolveRole(rawUser, jwtPayload)
 
-  const idNum = rawUser?.id ?? rawUser?.user_id ?? rawUser?.pk ?? jwtPayload?.nameid ?? jwtPayload?.sub
-  const id = idNum != null ? String(idNum) : String(Date.now())
+  const rawId = pickRawIdFromLogin(rawUser, jwtPayload)
+  let id = normalizeApiNumericId(rawId)
+  if (!id && rawId != null) {
+    const stripped = String(rawId).trim().replace(/^_+/, '')
+    id = normalizeApiNumericId(stripped)
+  }
+  if (!id) id = String(Date.now())
 
   const first = rawUser?.first_name ?? rawUser?.firstName ?? ''
   const last = rawUser?.last_name ?? rawUser?.lastName ?? ''

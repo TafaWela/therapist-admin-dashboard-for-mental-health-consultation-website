@@ -6,11 +6,12 @@ import {
   fetchTherapistDashboard,
   mapPaymentToTransaction,
   mapDashboardStats,
+  resolveTherapistIdForApi,
 } from '../../../api/neureaApi.js';
 
 function Earnings() {
   const { user } = useAuth();
-  const therapistId = user?.id;
+  const therapistId = resolveTherapistIdForApi(user);
 
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [txns, setTxns] = useState([]);

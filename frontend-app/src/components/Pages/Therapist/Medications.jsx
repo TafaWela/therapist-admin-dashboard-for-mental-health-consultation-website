@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import PrescribeModal from './PrescribeModal';
 import EditPrescriptionModal from './EditPrescriptionModal';
 import { useAuth } from '../../context/AuthContext';
-import { fetchTherapistMedicines, mapMedicineToPrescription } from '../../../api/neureaApi.js';
+import {
+  fetchTherapistMedicines,
+  mapMedicineToPrescription,
+  resolveTherapistIdForApi,
+} from '../../../api/neureaApi.js';
 
 function Medications() {
   const { user } = useAuth();
-  const therapistId = user?.id;
+  const therapistId = resolveTherapistIdForApi(user);
 
   const [prescriptions, setPrescriptions] = useState([]);
   const [listLoading, setListLoading] = useState(true);

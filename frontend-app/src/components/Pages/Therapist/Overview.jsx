@@ -6,6 +6,7 @@ import {
   fetchTherapistDashboard,
   mapDashboardStats,
   mapSessionToOverviewCard,
+  resolveTherapistIdForApi,
 } from '../../../api/neureaApi.js';
 
 function isSameCalendarDay(iso, refDate) {
@@ -20,7 +21,7 @@ function isSameCalendarDay(iso, refDate) {
 
 function Overview({ setActiveTab }) {
   const { user } = useAuth();
-  const therapistId = user?.id;
+  const therapistId = resolveTherapistIdForApi(user);
 
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);

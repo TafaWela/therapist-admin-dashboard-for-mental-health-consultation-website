@@ -7,6 +7,8 @@ export interface User {
     avatar?: string;
     status: 'active' | 'inactive' | 'suspended';
     createdAt: string;
+    /** ApiTherapistProfile primary key — optional; used when routes expect profile id */
+    therapistProfileId?: string;
   }
   
   export interface Therapist extends User {

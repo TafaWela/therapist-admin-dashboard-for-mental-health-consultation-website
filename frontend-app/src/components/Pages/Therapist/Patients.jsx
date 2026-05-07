@@ -7,11 +7,15 @@ import TherapistPatientTable from './TherapistPatientTable';
 import TherapistPaginationControls from './TherapistPaginationControls';
 import ActiveFiltersDisplay from './ActiveFiltersDisplay';
 import { useAuth } from '../../context/AuthContext';
-import { fetchTherapistPatients, mapApiPatientToTherapistRow } from '../../../api/neureaApi.js';
+import {
+  fetchTherapistPatients,
+  mapApiPatientToTherapistRow,
+  resolveTherapistIdForApi,
+} from '../../../api/neureaApi.js';
 
 function Patients({ setActiveTab }) {
   const { user } = useAuth();
-  const therapistId = user?.id;
+  const therapistId = resolveTherapistIdForApi(user);
 
   const [patients, setPatients] = useState([]);
   const [listLoading, setListLoading] = useState(true);

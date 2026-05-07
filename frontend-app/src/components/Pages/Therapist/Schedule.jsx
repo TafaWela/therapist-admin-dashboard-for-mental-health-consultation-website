@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { fetchTherapistAvailabilitySlots } from '../../../api/neureaApi.js';
+import {
+  fetchTherapistAvailabilitySlots,
+  resolveTherapistIdForApi,
+} from '../../../api/neureaApi.js';
 
 function Schedule() {
   const { user } = useAuth();
-  const therapistId = user?.id;
+  const therapistId = resolveTherapistIdForApi(user);
 
   const [apiSlots, setApiSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
