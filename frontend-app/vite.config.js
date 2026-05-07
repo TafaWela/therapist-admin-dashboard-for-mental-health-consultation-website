@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://neurea.runasp.net',
+        target: 'http://neurea.runasp.net',
         changeOrigin: true,
         secure: true,
       },
