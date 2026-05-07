@@ -29,15 +29,10 @@ const Login: React.FC = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (email.toLowerCase().includes('yousef') || email.toLowerCase().includes('admin')) {
-        await login(email, password, 'admin');
-        navigate('/admin');
-      } else {
-        await login(email, password, 'therapist');
-        navigate('/therapist');
-      }
+      const loggedInUser = await login(email, password);
+      navigate(loggedInUser.role === 'admin' ? '/admin' : '/therapist');
     } catch {
-      // errors handled in context
+      // surface via UI if needed
     }
   };
 

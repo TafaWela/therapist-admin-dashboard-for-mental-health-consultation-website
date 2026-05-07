@@ -1,30 +1,16 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { User, AuthContextType } from '../types';
+import { loginRequest } from '../../api/neureaApi.js';
+import {
+  extractTokenFromLoginResponse,
+  buildAppUserFromLogin,
+} from '../../api/loginResponse.js';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
-
-// Mock test accounts for development (no backend required)
-const MOCK_ACCOUNTS: Array<{ email: string; password: string; user: User }> = [
-  {
-    email: 'admin@neurea.com',
-    password: 'password123',
-    user: { id: '1', name: 'Admin User', email: 'admin@neurea.com', role: 'admin', avatar: '', status: 'active', createdAt: new Date().toISOString() }
-  },
-  {
-    email: 'therapist@neurea.com',
-    password: 'password123',
-    user: { id: '2', name: 'Dr. John Therapist', email: 'therapist@neurea.com', role: 'therapist', avatar: '', status: 'active', createdAt: new Date().toISOString() }
-  },
-  {
-    email: 'dr.bruce@neurea.com',
-    password: '123456m',
-    user: { id: '3', name: 'Dr. Bruce', email: 'dr.bruce@neurea.com', role: 'therapist', avatar: '', status: 'active', createdAt: new Date().toISOString() }
-  },
-];
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -39,69 +25,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const [loading, setLoading] = useState(false);
 
-  const login = useCallback(async (email: string, password: string, role?: string) => {
-    setLoading(true);
-    try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // If role is explicitly passed, use it directly
-      if (role) {
-        const userData = {
-          id: Date.now().toString(),
-          name: role === 'admin' ? 'Yousef Mohamed' : 'Dr. Mike Bruce',
-          email,
-          role: (role === 'admin' ? 'admin' : 'therapist') as 'admin' | 'therapist',
-          avatar: '',
-          status: 'active' as const,
-          createdAt: new Date().toISOString()
-        };
+  const login = useCallback(
+    async (email: string, password: string): Promise<User> => {
+      setLoading(true);
+      try {
+        const data = await loginRequest(email, password);
+        const token = extractTokenFromLoginResponse(data);
+        if (!token) {
+          throw new Error('Login succeeded but no token was returned. Check API response shape.');
+        }
+        const userData = buildAppUserFromLogin({ data, email, token });
         setUser(userData);
         setIsLoggedIn(true);
         localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('isLoggedIn', JSON.stringify(true));
-        localStorage.setItem('token', 'mock-token-' + Date.now());
-        return;
+        localStorage.setItem('token', token);
+        return userData;
+      } catch (error) {
+        console.error('Login error:', error);
+        throw error;
+      } finally {
+        setLoading(false);
       }
-
-      // Check mock accounts
-      const account = MOCK_ACCOUNTS.find(acc => acc.email === email && acc.password === password);
-      
-      if (!account) {
-        // Fallback: determine role from email
-        const inferredRole: 'admin' | 'therapist' = (email.includes('admin') || email.includes('yousef')) ? 'admin' : 'therapist';
-        const userData = {
-          id: Date.now().toString(),
-          name: inferredRole === 'admin' ? 'Yousef Mohamed' : 'Dr. Mike Bruce',
-          email,
-          role: inferredRole,
-          avatar: '',
-          status: 'active' as const,
-          createdAt: new Date().toISOString()
-        };
-        setUser(userData);
-        setIsLoggedIn(true);
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('isLoggedIn', JSON.stringify(true));
-        localStorage.setItem('token', 'mock-token-' + Date.now());
-        return;
-      }
-
-      const userData = account.user;
-      setUser(userData);
-      setIsLoggedIn(true);
-
-      // Store in localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('isLoggedIn', JSON.stringify(true));
-      localStorage.setItem('token', 'mock-token-' + Date.now());
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     setUser(null);
@@ -114,16 +62,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const verify2FA = useCallback(async (code: string) => {
     setLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Mock: accept any 6-digit code
+      await new Promise((resolve) => setTimeout(resolve, 500));
       if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
         throw new Error('Invalid 2FA code. Please enter 6 digits.');
       }
-      
-      // Mock: always succeed (in real scenario, verify against backend)
-      localStorage.setItem('token', 'mock-token-2fa-' + Date.now());
+      const t = localStorage.getItem('token');
+      if (!t || !t.includes('.')) {
+        localStorage.setItem('token', 'mock-token-2fa-' + Date.now());
+      }
     } catch (error) {
       console.error('2FA error:', error);
       throw error;
@@ -135,14 +81,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const resetPassword = useCallback(async (newPassword: string) => {
     setLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
       if (!newPassword || newPassword.length < 6) {
         throw new Error('Password must be at least 6 characters');
       }
-      
-      // Mock: simulate successful password reset
       if (user) {
         const updatedUser = { ...user };
         setUser(updatedUser);
@@ -154,7 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const value: AuthContextType = {
     isLoggedIn,

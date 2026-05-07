@@ -1,28 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FilterControls from './FilterControls';
 import PatientTable from './PatientTable';
 import PaginationControls from './PaginationControls';
-
-// هنا حطينا الداتا بتاعت المرضى كلها في مكان واحد نظيف
-const patientsData = [
-  { id: '#P-8472', name: 'Sarah Ahmed', initials: 'SA', email: 'sarah.a@example.com', plan: 'pro', status: 'active', date: 'Jan 12, 2026', color: 'bg-blue-100 text-blue-600' },
-  { id: '#P-3921', name: 'Mohamed Ali', initials: 'MA', email: 'm.ali99@example.com', plan: 'standard', status: 'active', date: 'Feb 04, 2026', color: 'bg-emerald-100 text-emerald-600' },
-  { id: '#P-1102', name: 'John Doe', initials: 'JD', email: 'j.doe_blocked@example.com', plan: 'standard', status: 'suspended', date: 'Dec 19, 2025', color: 'bg-gray-200 text-gray-500' },
-  { id: '#P-5590', name: 'Layla Kamel', initials: 'LK', email: 'layla.k@example.com', plan: 'pro', status: 'active', date: 'Jan 28, 2026', color: 'bg-purple-100 text-purple-600' },
-  { id: '#P-7801', name: 'Omar Rashid', initials: 'OR', email: 'omar.r@example.com', plan: 'standard', status: 'active', date: 'Feb 14, 2026', color: 'bg-orange-100 text-orange-600' },
-  { id: '#P-2287', name: 'Emma Watson', initials: 'EW', email: 'emma.w@example.com', plan: 'pro', status: 'active', date: 'Mar 01, 2026', color: 'bg-pink-100 text-pink-600' },
-  { id: '#P-6104', name: 'Ahmed Hassan', initials: 'AH', email: 'ahmed.h@example.com', plan: 'standard', status: 'active', date: 'Feb 20, 2026', color: 'bg-teal-100 text-teal-600' },
-  { id: '#P-3345', name: 'Fatima Nour', initials: 'FN', email: 'fatima.n@example.com', plan: 'standard', status: 'suspended', date: 'Nov 30, 2025', color: 'bg-gray-200 text-gray-500' },
-  { id: '#P-9012', name: 'Youssef Salem', initials: 'YS', email: 'youssef.s@example.com', plan: 'pro', status: 'active', date: 'Mar 05, 2026', color: 'bg-indigo-100 text-indigo-600' },
-  { id: '#P-4478', name: 'Nora Ali', initials: 'NA', email: 'nora.a@example.com', plan: 'standard', status: 'active', date: 'Feb 28, 2026', color: 'bg-cyan-100 text-cyan-600' },
-];
+import {
+  fetchUsers,
+  normalizeUsersPayload,
+  filterPatientsFromUsers,
+  mapApiUserToAdminPatientRow,
+} from '../../../api/neureaApi.js';
 
 function Patients() {
-  // الحالة اللي بتتحكم في فتح وقفل قائمة الفلتر
+  const [patientsData, setPatientsData] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState(null);
+
   const [tempFilters, setTempFilters] = useState({ plan: 'all', status: 'all' });
   const [activeFilters, setActiveFilters] = useState({ plan: 'all', status: 'all' });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setListLoading(true);
+      setListError(null);
+      try {
+        const payload = await fetchUsers();
+        const users = normalizeUsersPayload(payload);
+        let subset = filterPatientsFromUsers(users);
+        if (subset.length === 0 && users.length > 0) {
+          subset = users.filter((u) => !u.is_staff);
+        }
+        const rows = subset.map((u, i) => mapApiUserToAdminPatientRow(u, i));
+        if (!cancelled) setPatientsData(rows);
+      } catch (e) {
+        if (!cancelled) setListError(e?.message || 'Failed to load patients');
+      } finally {
+        if (!cancelled) setListLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleApplyFilters = () => {
     setActiveFilters(tempFilters);
@@ -53,20 +73,19 @@ function Patients() {
   const startIndex = (currentPageSafe - 1) * itemsPerPage;
   const currentPatients = filteredPatients.slice(startIndex, startIndex + itemsPerPage);
 
-  const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1);
-
   return (
     <div id="view-patients" className="view-section animate-fade-in flex flex-col h-full">
-      
-      {/* الهيدر وزراير الفلتر */}
       <div className="flex justify-between items-end mb-6">
         <div className="flex flex-col">
           <h3 className="text-[24px] font-extrabold text-neurea-textDark">Patient Database</h3>
-          <p className="text-[13px] text-gray-500">Manage registered users, subscription plans, and account statuses.</p>
+          <p className="text-[13px] text-gray-500">
+            Manage registered users, subscription plans, and account statuses.
+          </p>
+          {listError && (
+            <p className="text-[13px] text-red-600 mt-2">{listError}</p>
+          )}
         </div>
         <div className="flex gap-3">
-          
-          {/* زرار الفلتر والقائمة بتاعته */}
           <FilterControls
             tempFilters={tempFilters}
             setTempFilters={setTempFilters}
@@ -83,19 +102,26 @@ function Patients() {
       <div className="bg-white rounded-[20px] shadow-sm border border-gray-100 flex flex-col flex-1 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <h3 className="text-[16px] font-bold text-neurea-textDark">All Registered Patients</h3>
-          <span className="bg-purple-100 text-[#5C2D91] px-3 py-1 rounded-full text-[12px] font-bold">{filteredPatients.length} Total</span>
+          <span className="bg-purple-100 text-[#5C2D91] px-3 py-1 rounded-full text-[12px] font-bold">
+            {listLoading ? '…' : filteredPatients.length} Total
+          </span>
         </div>
 
-        <PatientTable currentPatients={currentPatients} />
-
-        <PaginationControls
-          currentPage={currentPageSafe}
-          setCurrentPage={setCurrentPage}
-          pageCount={pageCount}
-          startIndex={startIndex}
-          itemsPerPage={itemsPerPage}
-          totalItems={filteredPatients.length}
-        />
+        {listLoading ? (
+          <div className="p-12 text-center text-gray-500">Loading patients…</div>
+        ) : (
+          <>
+            <PatientTable currentPatients={currentPatients} />
+            <PaginationControls
+              currentPage={currentPageSafe}
+              setCurrentPage={setCurrentPage}
+              pageCount={pageCount}
+              startIndex={startIndex}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredPatients.length}
+            />
+          </>
+        )}
       </div>
     </div>
   );

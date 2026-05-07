@@ -40,7 +40,7 @@ export interface User {
     user: User | null;
     userRole: 'admin' | 'therapist' | null;
     loading: boolean;
-    login: (email: string, password: string, role?: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<User>;
     logout: () => void;
     verify2FA: (code: string) => Promise<void>;
     resetPassword: (newPassword: string) => Promise<void>;

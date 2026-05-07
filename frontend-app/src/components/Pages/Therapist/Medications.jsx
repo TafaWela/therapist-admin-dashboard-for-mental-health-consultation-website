@@ -1,18 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PrescribeModal from './PrescribeModal';
 import EditPrescriptionModal from './EditPrescriptionModal';
-
-// قاعدة بيانات وهمية عشان الجدول يشتغل
-const initialPrescriptions = [
-  { id: 1, patientName: 'Sarah Ahmed', patientId: '#P-8472', medication: 'Sertraline (Zoloft)', dosage: '50mg', freq: 'Once daily', date: 'March 15, 2026' },
-  { id: 2, patientName: 'Mohamed Ali', patientId: '#P-3921', medication: 'Fluoxetine (Prozac)', dosage: '20mg', freq: 'Twice daily', date: 'March 10, 2026' }
-];
+import { useAuth } from '../../context/AuthContext';
+import { fetchTherapistMedicines, mapMedicineToPrescription } from '../../../api/neureaApi.js';
 
 function Medications() {
-  const [prescriptions, setPrescriptions] = useState(initialPrescriptions);
+  const { user } = useAuth();
+  const therapistId = user?.id;
+
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState(null);
   const [isPrescribeOpen, setIsPrescribeOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+
+  useEffect(() => {
+    if (!therapistId) {
+      setListLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setListLoading(true);
+      setListError(null);
+      try {
+        const data = await fetchTherapistMedicines(therapistId);
+        const arr = Array.isArray(data) ? data : data?.data ?? [];
+        if (!cancelled) {
+          setPrescriptions(arr.map((m, i) => mapMedicineToPrescription(m, i)));
+        }
+      } catch (e) {
+        if (!cancelled) setListError(e?.message || 'Failed to load medications');
+      } finally {
+        if (!cancelled) setListLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [therapistId]);
 
   // دالة لمسح الدواء لما ندوس Stop
   const stopMedication = (id) => {
@@ -34,6 +61,7 @@ function Medications() {
         <div className="flex flex-col">
           <h3 className="text-[24px] font-extrabold text-[#1E1E2A]">Patient Medications</h3>
           <p className="text-[13px] text-gray-500">Manage prescriptions and active medications for your patients.</p>
+          {listError && <p className="text-[12px] text-red-600 mt-1">{listError}</p>}
         </div>
         <button 
           onClick={() => setIsPrescribeOpen(true)}
@@ -61,7 +89,11 @@ function Medications() {
               </tr>
             </thead>
             <tbody>
-              {prescriptions.length === 0 ? (
+              {listLoading ? (
+                <tr>
+                  <td colSpan="5" className="p-8 text-center text-gray-500 text-[14px]">Loading…</td>
+                </tr>
+              ) : prescriptions.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="p-8 text-center text-gray-500 text-[14px]">No active prescriptions found.</td>
                 </tr>

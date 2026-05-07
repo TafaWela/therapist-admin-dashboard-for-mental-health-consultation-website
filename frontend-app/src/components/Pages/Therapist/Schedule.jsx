@@ -1,6 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { fetchTherapistAvailabilitySlots } from '../../../api/neureaApi.js';
 
 function Schedule() {
+  const { user } = useAuth();
+  const therapistId = user?.id;
+
+  const [apiSlots, setApiSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState(null);
+
+  useEffect(() => {
+    if (!therapistId) return;
+    let cancelled = false;
+    (async () => {
+      setSlotsLoading(true);
+      setSlotsError(null);
+      try {
+        const data = await fetchTherapistAvailabilitySlots(therapistId);
+        const arr = Array.isArray(data) ? data : data?.data ?? [];
+        if (!cancelled) setApiSlots(arr);
+      } catch (e) {
+        if (!cancelled) setSlotsError(e?.message || 'Could not load availability slots');
+      } finally {
+        if (!cancelled) setSlotsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [therapistId]);
+
   // 1. حالة لتخزين سعر الجلسة
   const [price, setPrice] = useState(60);
 
@@ -121,6 +151,40 @@ function Schedule() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-10 border-t border-gray-100 pt-8">
+            <h4 className="text-[15px] font-bold text-[#1E1E2A] mb-3 flex items-center gap-2">
+              <i className="ph-fill ph-calendar text-gray-400 text-lg"></i> Bookable slots (API)
+            </h4>
+            <p className="text-[12px] text-gray-500 mb-3">
+              Loaded from <code className="text-[11px] bg-gray-100 px-1 rounded">GET /api/ApiAvailabilitySlots/therapist/&#123;id&#125;/slots</code>
+            </p>
+            {slotsError && <p className="text-[13px] text-red-600 mb-2">{slotsError}</p>}
+            {slotsLoading && <p className="text-[13px] text-gray-500">Loading slots…</p>}
+            {!slotsLoading && !slotsError && apiSlots.length === 0 && (
+              <p className="text-[13px] text-gray-500">No slots returned.</p>
+            )}
+            {!slotsLoading && apiSlots.length > 0 && (
+              <ul className="flex flex-col gap-2 max-h-48 overflow-y-auto text-[13px]">
+                {apiSlots.map((slot, i) => (
+                  <li
+                    key={slot.id ?? i}
+                    className="flex justify-between gap-4 border border-gray-100 rounded-lg px-3 py-2 bg-gray-50/80"
+                  >
+                    <span className="font-semibold text-[#1E1E2A]">
+                      {slot.date ?? slot.Date ?? '—'}{' '}
+                      <span className="text-gray-500 font-normal">
+                        {slot.start_time ?? slot.startTime ?? ''}
+                      </span>
+                    </span>
+                    <span className="text-gray-600">
+                      {slot.is_booked ?? slot.isBooked ? 'Booked' : 'Open'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* زرار الحفظ */}

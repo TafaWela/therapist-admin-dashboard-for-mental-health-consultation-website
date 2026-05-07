@@ -13,8 +13,8 @@ function PatientTable({ currentPatients }) {
           </tr>
         </thead>
         <tbody>
-          {currentPatients.map((patient, index) => (
-            <tr key={index} className={`hover:bg-gray-50 transition-colors border-b border-gray-100 ${patient.status === 'suspended' ? 'opacity-75' : ''}`}>
+          {currentPatients.map((patient) => (
+            <tr key={patient.id} className={`hover:bg-gray-50 transition-colors border-b border-gray-100 ${patient.status === 'suspended' ? 'opacity-75' : ''}`}>
               <td className="p-4 pl-6">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] ${patient.color}`}>
