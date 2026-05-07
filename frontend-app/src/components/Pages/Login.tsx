@@ -8,17 +8,20 @@ import TwoFactorAuth from './Auth/TwoFactorAuth';
 import ResetPassword from './Auth/ResetPassword';
 import SuccessMessage from './Auth/SuccessMessage';
 
+import { formatLoginError } from '../../utils/loginErrors';
+
 type View = 'login' | '2fa' | 'reset' | 'success';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loading } = useAuth();
 
   // States
   const [view, setView] = useState<View>('login');
   const [email, setEmail] = useState('dr.bruce@neurea.com');
   const [password, setPassword] = useState('password123');
   const [rememberMe, setRememberMe] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [codeInputs, setCodeInputs] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,11 +31,12 @@ const Login: React.FC = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     try {
       const loggedInUser = await login(email, password);
       navigate(loggedInUser.role === 'admin' ? '/admin' : '/therapist');
-    } catch {
-      // surface via UI if needed
+    } catch (err) {
+      setAuthError(formatLoginError(err));
     }
   };
 
@@ -56,11 +60,21 @@ const Login: React.FC = () => {
     <div className="bg-[#F4F5F9] flex items-center justify-center min-h-screen font-sans text-[#1E1E2A]">
       {view === 'login' && (
         <LoginForm 
-          email={email} setEmail={setEmail}
-          password={password} setPassword={setPassword}
+          email={email}
+          setEmail={(v) => {
+            setEmail(v);
+            setAuthError(null);
+          }}
+          password={password}
+          setPassword={(v) => {
+            setPassword(v);
+            setAuthError(null);
+          }}
           rememberMe={rememberMe} setRememberMe={setRememberMe}
           handleSignIn={handleSignIn}
           onForgotPassword={() => switchView('2fa')}
+          authError={authError}
+          submitting={loading}
         />
       )}
 

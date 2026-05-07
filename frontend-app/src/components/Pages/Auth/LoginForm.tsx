@@ -10,10 +10,14 @@ interface LoginFormProps {
   setRememberMe: (r: boolean) => void;
   handleSignIn: (e: React.FormEvent) => void;
   onForgotPassword: () => void;
+  authError?: string | null;
+  /** Disables submit while a request is in flight */
+  submitting?: boolean;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
-  email, setEmail, password, setPassword, rememberMe, setRememberMe, handleSignIn, onForgotPassword
+  email, setEmail, password, setPassword, rememberMe, setRememberMe, handleSignIn, onForgotPassword,
+  authError, submitting,
 }) => {
   return (
     <div className="w-full max-w-md p-6 animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)_forwards]">
@@ -28,6 +32,15 @@ const LoginForm: React.FC<LoginFormProps> = ({
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#5C2D91]/20 to-transparent"></div>
 
         <form onSubmit={handleSignIn} className="flex flex-col gap-6">
+          {authError && (
+            <div
+              role="alert"
+              className="rounded-[14px] border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-800"
+            >
+              {authError}
+            </div>
+          )}
+
           <div>
             <label className="block text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Work Email</label>
             <div className="relative group">
@@ -75,9 +88,10 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
           <button
             type="submit"
-            className="w-full mt-2 py-4 bg-gradient-to-br from-[#5C2D91] to-[#5a2491] hover:to-[#5C2D91] text-white rounded-[20px] text-[16px] font-bold transition-all shadow-[0_10px_25px_-5px_rgba(107,33,168,0.4)] active:scale-[0.97] flex justify-center items-center"
+            disabled={!!submitting}
+            className="w-full mt-2 py-4 bg-gradient-to-br from-[#5C2D91] to-[#5a2491] hover:to-[#5C2D91] text-white rounded-[20px] text-[16px] font-bold transition-all shadow-[0_10px_25px_-5px_rgba(107,33,168,0.4)] active:scale-[0.97] flex justify-center items-center disabled:opacity-60 disabled:pointer-events-none"
           >
-            Sign In
+            {submitting ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
       </div>
